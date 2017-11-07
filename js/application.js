@@ -1,4 +1,4 @@
-define(['mdc', 'canvasState', 'grid', 'pendulum', 'limiter'], function (mdc, CanvasState, Grid, Pendulum, Limiter) {
+define(['mdc', 'canvasState', 'grid', 'limiter'], function (mdc, CanvasState, Grid, Limiter) {
     class Application {
         constructor() {
             const canvas = document.getElementById('canvas');

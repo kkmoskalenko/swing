@@ -1,11 +1,19 @@
-define(['grid'], function (Grid) {
+define(['grid', 'pendulum'], function (Grid, Pendulum) {
     class CanvasState {
         constructor(canvas) {
+            // **** Options! ****
+            this.selectionColor = '#CC0000';
+            this.selectionWidth = 2;
+            this.interval = 30;
+
             // **** First some setup! ****
             this.canvas = canvas;
             this.width = window.innerWidth;
             this.height = window.innerHeight;
             this.context = canvas.getContext('2d');
+
+            // Добавляем маятник
+            this.pendulum = new Pendulum(this.width / 2, 30, 30, 45, 1, 0); // TODO: Добавить возможность устанавливать эти параметры из графического интерфейса
 
             // **** Keep track of state! ****
             this.valid = false; // when set to false, the canvas will redraw everything
@@ -75,10 +83,6 @@ define(['grid'], function (Grid) {
                 myState.dragging = false;
             }, true);
 
-            // **** Options! ****
-            this.selectionColor = '#CC0000';
-            this.selectionWidth = 2;
-            this.interval = 30;
             setInterval(() => myState.redraw(), myState.interval);
         }
 
@@ -116,45 +120,60 @@ define(['grid'], function (Grid) {
             this.width = window.innerWidth;
             this.height = window.innerHeight;
 
-            this.valid = false;
-            this.redraw(); // Call redraw() immediately, without waiting until setInterval() does it
+            this.pendulum.x0 = this.width / 2; // При изменении размера окна, перемещаем точку крепления маятника в середину страницы (по горизонтали)
 
-            /* In this case, redraw() takes an average of 0.5ms
-             * Whereas setInterval() method is set to a few dozen milliseconds
-             * That's why calling redraw() manually makes the resize animation smoother */
+            const run = this.pendulum.run;
+            if (run) {
+                // Если маятник запущен, то останавливаем маятник на момент перерисовки, вызванной изменением размера окна
+                this.pendulum.run = false;
+            }
+
+            this.redraw(); // Вызываем перериовку вручную, чтобы это выглядело плавнее
+
+            this.pendulum.run = run; // После перерисовки возвращаем маятник в исходное состоянее (запущен или нет)
+
+            this.valid = false;
         }
 
         /* While redraw is called as often as the INTERVAL variable demands,
         It only ever does something if the canvas gets invalidated by our code */
         redraw() {
-            // if our state is invalid, redraw and validate!
-            if (!this.valid) {
-                const context = this.context;
-                const shapes = this.shapes;
-                this.clear();
+            if (this.valid) return;
 
-                // Draw the grid in the background
-                const grid = new Grid(30, "#CFD8DC"); // 50px, Blue Grey 100
-                grid.draw(this.context);
+            const context = this.context;
+            const shapes = this.shapes;
+            const interval = this.interval;
+            const pendulum = this.pendulum;
 
-                // Redraw all shapes
-                for (let i = 0; i < shapes.length; i++) {
-                    const shape = shapes[i];
-                    // We can skip the drawing of elements that have moved off the screen:
-                    if (shape.x > this.width || shape.y > this.height ||
-                        shape.x + shape.width < 0 || shape.y + shape.height < 0) continue;
-                    shapes[i].draw(context);
-                }
+            this.clear();
 
-                // redraw selection
-                // right now this is just a stroke along the edge of the selected Shape
-                if (this.selection !== null) {
-                    context.strokeStyle = this.selectionColor;
-                    context.lineWidth = this.selectionWidth;
-                    const mySel = this.selection;
-                    context.strokeRect(mySel.x, mySel.y, mySel.width, mySel.height);
-                }
+            // Draw the grid in the background
+            const grid = new Grid(30, "#CFD8DC"); // 50px, Blue Grey 100
+            grid.draw(context);
 
+            // Draw pendulum
+            pendulum.draw(context, interval);
+
+            // Redraw all shapes
+            for (let i = 0; i < shapes.length; i++) {
+                const shape = shapes[i];
+                // We can skip the drawing of elements that have moved off the screen:
+                if (shape.x > this.width || shape.y > this.height ||
+                    shape.x + shape.width < 0 || shape.y + shape.height < 0) continue;
+                shapes[i].draw(context);
+            }
+
+            // redraw selection
+            // right now this is just a stroke along the edge of the selected Shape
+            if (this.selection !== null) {
+                context.strokeStyle = this.selectionColor;
+                context.lineWidth = this.selectionWidth;
+                const mySel = this.selection;
+                context.strokeRect(mySel.x, mySel.y, mySel.width, mySel.height);
+            }
+
+            // Считаем состояние canvas'а действительным только в том случае, если маятник сейчас не запущен
+            if (!pendulum.run) {
                 this.valid = true;
             }
         }
