@@ -5,13 +5,14 @@ define(function () {
          * @param supportX0 Координата точки крепления маятника по оси X
          * @param supportY0 Координата точки крепления маятника по оси Y
          * @param radius Радиус груза (так как он имеет форму шара)
-         * @param angle Угол начального отклонения маятника (в градусах)
+         * @param angle0 Угол начального отклонения маятника (в градусах)
          * @param length Длина подвеса
          * @param deceleration Коэффицент затухания
+         * @param run Запущен ли маятник при создании
          */
-        constructor(supportX0, supportY0, radius, angle, length, deceleration) {
-            const coef = 400; // Коэффециент масштабирования длины нити
-            length *= coef;
+        constructor(supportX0, supportY0, radius, angle0, length, deceleration, run) {
+            this.coef = 400; // Коэффециент масштабирования длины нити
+            length *= this.coef;
 
             // Начальные координаты маятника
             this.x0 = supportX0;
@@ -22,14 +23,14 @@ define(function () {
             this.y = this.y0;
 
             this.radius = radius;
-            this.amplitude = Pendulum.calcAmplitude(angle, length);
+            this.amplitude = Pendulum.calcAmplitude(angle0, length);
             this.length = length;
             this.deceleration = deceleration;
 
             this.time = 0; // Время
-            this.period = Pendulum.calcPeriod(length / coef); // Период колебаний
+            this.period = Pendulum.calcPeriod(length / this.coef); // Период колебаний
 
-            this.run = true; // Запущен ли маятник при создании
+            this.run = run;
         }
 
         /**
@@ -65,6 +66,15 @@ define(function () {
         };
 
         /**
+         * Конвертирует радианы в градусы
+         * @param radians Значение в радианах
+         * @returns {number} Значение в градусах
+         */
+        static degrees(radians) {
+            return radians * 180 / Math.PI;
+        };
+
+        /**
          * Вычисляет предварительное значение x (без учёта начальных координат)
          * @returns {number} Значение x
          */
@@ -93,6 +103,63 @@ define(function () {
          */
         getTime() {
             return this.time / 1000;
+        }
+
+        /**
+         * Вычисляет длину отрезка по координатам начальной и конечной точек
+         * @param x0 Координата x начальной точки
+         * @param y0 Координата y начальной точки
+         * @param x Координата x конечной точки
+         * @param y Координата y конечной точки
+         * @returns {number} Длина отрезка
+         */
+        static calcLineSegmentLength(x0, y0, x, y) {
+            const xSquared = Math.pow(x - x0, 2);
+            const ySquared = Math.pow(y - y0, 2);
+
+            return Math.sqrt(xSquared + ySquared);
+        }
+
+        /**
+         * Вычисляет текущий угол поворота маятника
+         * @returns {number} Угол в градусах
+         */
+        calcAngle() {
+            // Длины сторон треугольника
+            const a = this.length;
+            const b = this.length;
+            const c = Pendulum.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
+
+            // Длины сторон треугольника, возведённые в квадрат
+            const aSquared = Math.pow(a, 2);
+            const bSquared = Math.pow(b, 2);
+            const cSquared = Math.pow(c, 2);
+
+            // Находим неизвестный угол (в радианах) по преобразованной теореме синусов
+            const angle = Math.acos((aSquared + bSquared - cSquared) / (2 * a * b));
+
+            // TODO: Исправить логику
+            if (this.x < this.x0) {
+                return Pendulum.degrees(-angle);
+            }
+            else {
+                return Pendulum.degrees(angle);
+            }
+        }
+
+        /**
+         * Вычисляет ближайшую точку к указанной, но при этом достижимую подвесом
+         * @param x Координата x указанной точки
+         * @param y Координата y указанной точки
+         * @returns {{x: *, y: *}} Координаты требуемой точки
+         */
+        calcTheClosestPoint(x, y) {
+            const angleInRads = Math.atan2(y - (this.y0 - this.length), x - this.x0);
+
+            return {
+                x: this.length * Math.cos(angleInRads) + this.x0,
+                y: this.length * Math.sin(angleInRads) + (this.y0 - this.length)
+            }
         }
 
         /**
@@ -155,26 +222,34 @@ define(function () {
         }
 
         /**
-         * Определяет, находится ли данная точка внутри фигуры
+         * Определяет, находится ли данная точка внутри груза маятника
          * @param mx Координата x точки
          * @param my Координата y точки
+         * @returns {boolean} Находится ли точка внутри груза маятника
          */
         contains(mx, my) {
+            const xSquared = Math.pow(mx - this.x, 2);
+            const ySquared = Math.pow(my - this.y, 2);
+            const radiusSquared = Math.pow(this.radius, 2);
 
+            return xSquared + ySquared < radiusSquared;
         }
 
         /**
          * Рисует маятник целиком
          * @param context Контекст 2D рендеринга для элемента canvas
          * @param interval Интервал, через который происходит перерисовка canvas
+         * @param dragging Находится ли маятник сейчас в режиме перетаскивания
          */
-        draw(context, interval) {
+        draw(context, interval, dragging) {
             if (this.run) {
                 this.time += interval;
             }
 
-            this.x = this.calcX() + this.x0;
-            this.y = this.calcY() + this.y0;
+            if (!dragging) {
+                this.x = this.calcX() + this.x0;
+                this.y = this.calcY() + this.y0;
+            }
 
             this.drawCord(context);
             this.drawBob(context);

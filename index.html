@@ -20,5 +20,45 @@
 <canvas id="canvas">
     <h1 class="mdc-typography--headline">К сожалению, Ваш браузер не поддерживает данное приложение.</h1>
 </canvas>
+
+<!--The pendulum's controls-->
+<div class="mdc-card">
+    <section class="mdc-card__primary">
+        <h1 class="mdc-card__title mdc-card__title--large">Настройки маятника</h1>
+    </section>
+
+    <section class="mdc-card__supporting-text">
+
+        <!--On/Off Switch-->
+        <div class="mdc-switch">
+            <input type="checkbox" id="switch" class="mdc-switch__native-control">
+            <div class="mdc-switch__background">
+                <div class="mdc-switch__knob"></div>
+            </div>
+        </div>
+        <label for="switch" class="mdc-switch-label">
+            Включить/выключить маятник
+        </label>
+
+        <!--Cord length input field-->
+        <div class="mdc-text-field">
+            <input type="number" step="0.05" min="0.2" class="mdc-text-field__input" id="length" value="1">
+            <label for="length" class="mdc-text-field__label">
+                Длина подвеса
+            </label>
+            <div class="mdc-text-field__bottom-line"></div>
+        </div>
+
+        <!--Deceleration coef input field-->
+        <div class="mdc-text-field">
+            <input type="number" step="0.02" min="0" class="mdc-text-field__input" id="deceleration" value="0">
+            <label for="deceleration" class="mdc-text-field__label">
+                Коэффицент затухания
+            </label>
+            <div class="mdc-text-field__bottom-line"></div>
+        </div>
+
+    </section>
+</div>
 </body>
 </html>
