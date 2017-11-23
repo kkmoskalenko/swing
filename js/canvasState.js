@@ -55,112 +55,49 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             this.resizeCanvas();
 
             // Fixes a problem where double clicking causes text to get selected on the canvas
-            canvas.addEventListener('selectstart', function (e) {
-                e.preventDefault();
+            canvas.addEventListener('selectstart', (event) => {
+                event.preventDefault();
                 return false;
             }, false);
 
             // Up, down, and move are for dragging
-            canvas.addEventListener('mousedown', function (e) {
-                const mouse = CanvasState.getMouse(e);
-                const mX = mouse.x;
-                const mY = mouse.y;
-                const shapes = myState.shapes;
+            canvas.addEventListener("mousedown", (event) => CanvasState.handlePointerDown(event.pageX, event.pageY, myState), true);
+            canvas.addEventListener("mousemove", (event) => CanvasState.handlePointerMove(event.pageX, event.pageY, myState), true);
+            canvas.addEventListener("mouseup", () => CanvasState.handlePointerUp(myState), true);
 
-                // Ищем выделение среди фигур
-                for (let i = shapes.length - 1; i >= 0; i--) {
-                    if (shapes[i].contains(mX, mY)) {
-                        const mySelection = shapes[i];
+            // Handle touch events
+            canvas.addEventListener('touchstart', (event) => {
+                const touches = event.changedTouches;
+                const firstTouch = touches[0];
 
-                        // Keep track of where in the object we clicked
-                        // so we can move it smoothly (see mousemove)
-                        myState.dragOffX = mX - mySelection.x;
-                        myState.dragOffY = mY - mySelection.y;
+                const mX = firstTouch.pageX;
+                const mY = firstTouch.pageY;
 
-                        myState.dragging = true;
-                        myState.selection = mySelection;
-                        myState.valid = false;
+                CanvasState.handlePointerDown(mX, mY, myState);
 
-                        return;
-                    }
-                }
-
-                // Если маятник не запущен, проверяем, выделен ли он
-                if (!myState.pendulum.run && myState.pendulum.contains(mX, mY)) {
-                    const mySelection = myState.pendulum;
-
-                    // Keep track of where in the object we clicked
-                    // so we can move it smoothly (see mousemove)
-                    myState.dragOffX = mX - mySelection.x;
-                    myState.dragOffY = mY - mySelection.y;
-
-                    myState.dragging = true;
-                    myState.selection = mySelection;
-                    myState.valid = false;
-
-                    return;
-                }
-
-                // haven't returned means we have failed to select anything.
-                // If there was an object selected, we deselect it
-                if (myState.selection) {
-                    myState.selection = null;
-                    myState.valid = false; // Need to clear the old selection border
-                }
+                event.preventDefault();
             }, true);
 
-            canvas.addEventListener('mousemove', function (e) {
-                if (myState.dragging) {
-                    const mouse = CanvasState.getMouse(e);
+            canvas.addEventListener('touchmove', (event) => {
+                const touches = event.changedTouches;
+                const firstTouch = touches[0];
 
-                    // We don't want to drag the object by its top-left corner, we want to drag it
-                    // from where we clicked. That's why we saved the offset and use it here
-                    const mouseX = mouse.x - myState.dragOffX;
-                    const mouseY = mouse.y - myState.dragOffY;
+                const mX = firstTouch.pageX;
+                const mY = firstTouch.pageY;
 
-                    if (myState.selection === myState.pendulum) {
-                        // При попытке переместить груз маятника, ограничиваем траекторию перемещения
-                        // Груз маятника может двигаться только по окружности с центром в точке крепления и радиусом равным длине шнура
+                CanvasState.handlePointerMove(mX, mY, myState);
 
-                        const point = myState.pendulum.calcTheClosestPoint(mouseX, mouseY);
-
-                        myState.selection.x = point.x;
-                        myState.selection.y = point.y;
-                    }
-                    else {
-                        myState.selection.x = mouseX;
-                        myState.selection.y = mouseY;
-                    }
-
-                    myState.valid = false; // Something's dragging so we must redraw
-                }
+                event.preventDefault();
             }, true);
 
-            canvas.addEventListener('mouseup', function () {
-                // Если при отпускании мыши изменился угол маятника, обновляем эти данные
-                if (myState.selection === myState.pendulum) {
-                    const newAngle = myState.pendulum.calcAngle();
+            canvas.addEventListener('touchend', () => {
+                CanvasState.handlePointerUp(myState);
 
-                    if (newAngle !== myState.pendulum.angle0) {
-                        myState.updatePendulumData(newAngle, null, null);
-                    }
-                }
-
-                myState.dragging = false;
-                myState.selection = null;
-                myState.valid = false;
+                event.preventDefault();
             }, true);
+
 
             setInterval(() => myState.redraw(), myState.interval);
-        }
-
-        // Creates an object with x and y defined, set to the mouse position relative to the state's canvas
-        static getMouse(e) {
-            // We return a simple javascript object (a hash) with x and y defined
-            return {
-                x: e.pageX,
-                y: e.pageY
-            };
         }
 
         addShape(shape) {
@@ -296,6 +233,91 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             this.pendulum = new Pendulum(this.defaultPendulumOptions.x0, this.defaultPendulumOptions.y0, this.defaultPendulumOptions.radius, angle, length, deceleration, run);
 
             this.valid = false;
+        }
+
+        static handlePointerDown(mX, mY, myState) {
+            const shapes = myState.shapes;
+
+            // Ищем выделение среди фигур
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (shapes[i].contains(mX, mY)) {
+                    const mySelection = shapes[i];
+
+                    // Keep track of where in the object we clicked
+                    // so we can move it smoothly (see mousemove)
+                    myState.dragOffX = mX - mySelection.x;
+                    myState.dragOffY = mY - mySelection.y;
+
+                    myState.dragging = true;
+                    myState.selection = mySelection;
+                    myState.valid = false;
+
+                    return;
+                }
+            }
+
+            // Если маятник не запущен, проверяем, выделен ли он
+            if (!myState.pendulum.run && myState.pendulum.contains(mX, mY)) {
+                const mySelection = myState.pendulum;
+
+                // Keep track of where in the object we clicked
+                // so we can move it smoothly (see mousemove)
+                myState.dragOffX = mX - mySelection.x;
+                myState.dragOffY = mY - mySelection.y;
+
+                myState.dragging = true;
+                myState.selection = mySelection;
+                myState.valid = false;
+
+                return;
+            }
+
+            // haven't returned means we have failed to select anything.
+            // If there was an object selected, we deselect it
+            if (myState.selection) {
+                myState.selection = null;
+                myState.valid = false; // Need to clear the old selection border
+            }
+        }
+
+        static handlePointerMove(mX, mY, myState) {
+            if (myState.dragging) {
+                // We don't want to drag the object by its top-left corner, we want to drag it
+                // from where we clicked. That's why we saved the offset and use it here
+                const mouseX = mX - myState.dragOffX;
+                const mouseY = mY - myState.dragOffY;
+
+                if (myState.selection === myState.pendulum) {
+                    // При попытке переместить груз маятника, ограничиваем траекторию перемещения
+                    // Груз маятника может двигаться только по окружности с центром в точке крепления и радиусом равным длине шнура
+
+                    const point = myState.pendulum.calcTheClosestPoint(mouseX, mouseY);
+
+                    myState.selection.x = point.x;
+                    myState.selection.y = point.y;
+                }
+                else {
+                    myState.selection.x = mouseX;
+                    myState.selection.y = mouseY;
+                }
+
+                myState.valid = false; // Something's dragging so we must redraw
+            }
+        }
+
+        static handlePointerUp(myState) {
+            // Если при отпускании мыши изменился угол маятника, обновляем эти данные
+            if (myState.selection === myState.pendulum) {
+                const newAngle = myState.pendulum.calcAngle();
+
+                if (newAngle !== myState.pendulum.angle0) {
+                    myState.updatePendulumData(newAngle, null, null);
+                }
+            }
+
+            myState.dragging = false;
+            myState.selection = null;
+            myState.valid = false;
         }
     }
 
