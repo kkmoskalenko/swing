@@ -3,11 +3,32 @@ define(function () {
         /**
          * Создаёт координатную плоскость
          * @param size Размер ячейки
-         * @param color Цвет линий
+         * @param gridColor Цвет линий сетки
+         * @param guideColor Цвет направляющей
          */
-        constructor(size, color) {
+        constructor(size, gridColor, guideColor) {
             this.size = size;
-            this.color = color;
+            this.gridColor = gridColor;
+            this.guideColor = guideColor;
+        }
+
+        /**
+         * Рисует вертикальную направляющую по центру холста
+         * @param context Контекст 2D рендеринга для элемента canvas
+         */
+        drawGuide(context) {
+            const canvas = context.canvas;
+
+            context.strokeStyle = this.guideColor;
+            context.setLineDash([5]);
+
+            context.beginPath();
+            context.moveTo(canvas.width / 2, 0);
+            context.lineTo(canvas.width / 2, canvas.height);
+            context.stroke();
+
+            // Отключает пунктирные линии после отрисовки направляющей
+            context.setLineDash([]);
         }
 
         /**
@@ -21,7 +42,7 @@ define(function () {
             const numLinesX = Math.floor(canvas.height / this.size);
             const numLinesY = Math.floor(canvas.width / this.size);
 
-            context.strokeStyle = this.color;
+            context.strokeStyle = this.gridColor;
 
             // Draw grid lines along X-axis
             for (let i = 0; i <= numLinesX; i++) {
@@ -55,6 +76,8 @@ define(function () {
                 }
                 context.stroke();
             }
+
+            this.drawGuide(context);
         }
     }
 

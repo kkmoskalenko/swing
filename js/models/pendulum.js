@@ -222,6 +222,43 @@ define(function () {
         }
 
         /**
+         * Рисует угол отклонения маятника
+         * @param context Контекст 2D рендеринга для элемента canvas
+         */
+        drawAngle(context) {
+            const cX = this.x0;
+            const cY = this.y0 - this.length;
+            const radius = 60; // Радиус значка угла
+            const startAngle = 0.5 * Math.PI;
+            const endAngle = Pendulum.radians(90 - this.calcAngle());
+            const counterClockwise = endAngle < startAngle;
+
+            context.fillStyle = "rgba(244, 67, 54, 0.5)"; // Red, 50% opacity
+
+            // Рисуем значок угла
+            context.beginPath();
+            context.moveTo(cX, cY);
+            context.arc(cX, cY, radius, startAngle, endAngle, counterClockwise);
+            context.lineTo(cX, cY);
+            context.fill();
+        }
+
+        /**
+         * Отображает значение угла отклонения маятника
+         * @param context Контекст 2D рендеринга для элемента canvas
+         */
+        writeAngleValue(context) {
+            const angle = Math.round(this.calcAngle()) + "°";
+
+            const x = context.canvas.width / 2;
+            const y = 30;
+
+            context.font = "30px sans-serif";
+            context.textAlign = "center";
+            context.fillText(angle, x, y);
+        }
+
+        /**
          * Определяет, находится ли данная точка внутри груза маятника
          * @param mx Координата x точки
          * @param my Координата y точки
@@ -249,6 +286,12 @@ define(function () {
             if (!dragging) {
                 this.x = this.calcX() + this.x0;
                 this.y = this.calcY() + this.y0;
+            }
+
+            // Если маятник не запущен, рисуем угол поворота
+            if (!this.run) {
+                this.writeAngleValue(context);
+                this.drawAngle(context);
             }
 
             this.drawCord(context);

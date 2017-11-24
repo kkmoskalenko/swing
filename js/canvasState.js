@@ -15,7 +15,7 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             // Default pendulum options
             this.defaultPendulumOptions = {
                 x0: this.width / 2,
-                y0: 30,
+                y0: 60,
                 radius: 30,
                 angle0: 0,
                 length: 1,
@@ -137,8 +137,6 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
                 this.pendulum.run = false;
             }
 
-            this.redraw(); // Вызываем перериовку вручную, чтобы это выглядело плавнее
-
             this.pendulum.run = run; // После перерисовки возвращаем маятник в исходное состоянее (запущен или нет)
 
             this.valid = false;
@@ -157,7 +155,7 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             this.clear();
 
             // Draw the grid in the background
-            const grid = new Grid(30, "#CFD8DC"); // 50px, Blue Grey 100
+            const grid = new Grid(30, "#CFD8DC", "#90A4AE"); // Grid color: Blue Grey 100. Guide color: Blue Grey 300.
             grid.draw(context);
 
             // Draw pendulum
