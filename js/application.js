@@ -1,11 +1,12 @@
 define(['mdc', 'canvasState'], function (mdc, CanvasState) {
     class Application {
         constructor() {
-            const canvas = document.getElementById('canvas');
-            this.canvasState = new CanvasState(canvas);
+            this.canvas = document.getElementById('canvas');
+            this.canvasState = new CanvasState(this.canvas);
 
             // MDC
             const MDCTextField = mdc.textField.MDCTextField;
+            const MDCSnackbar = mdc.snackbar.MDCSnackbar;
 
             // Инициализируем поля ввода MDC
             this.inputFields = Array.from(document.querySelectorAll(".mdc-text-field"));
@@ -21,6 +22,13 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
             this.lengthEl.value = this.canvasState.defaultPendulumOptions.length;
             this.decelerationEl.value = this.canvasState.defaultPendulumOptions.deceleration;
 
+            // Инициализируем Snackbar
+            this.snackbar = new MDCSnackbar(document.querySelector('.mdc-snackbar'));
+
+            // Инициализируем FAB
+            this.fab = document.querySelector('.mdc-fab');
+            mdc.ripple.MDCRipple.attachTo(this.fab);
+
             // Инициализируем переключатель
             this.toggleEl = document.querySelector("#switch");
 
@@ -30,7 +38,7 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
             // Обрабатываем случай, если маятник был запущен при запуске приложения
             this.toggleChangeHandler();
 
-            // Регистрируем обработчики событий для полей и переключателя
+            // Регистрируем обработчики событий для элементов управления
             this.lengthEl.addEventListener("change", () => {
                 if (this.lengthEl.checkValidity()) {
                     this.canvasState.updatePendulumData(null, parseFloat(this.lengthEl.value), null);
@@ -43,7 +51,9 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
                 }
             });
 
-            this.toggleEl.addEventListener('change', () => this.toggleChangeHandler());
+            this.toggleEl.addEventListener("change", () => this.toggleChangeHandler());
+
+            this.fab.addEventListener("click", () => this.fabClickHandler());
         }
 
         toggleChangeHandler() {
@@ -65,6 +75,51 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
                     inputField.classList.remove("mdc-text-field--disabled");
                 }
             }));
+        }
+
+        fabClickHandler() {
+            const foundation = this.snackbar.foundation_;
+
+            const canvasClickHandler = (event) => {
+                let x, y;
+
+                if (event.type === "click") {
+                    x = event.pageX;
+                    y = event.pageY;
+                }
+                else {
+                    const firstTouch = event.changedTouches[0];
+
+                    x = firstTouch.pageX;
+                    y = firstTouch.pageY;
+                }
+
+                this.canvasState.addLimiter(x, y);
+
+                this.canvas.removeEventListener("click", canvasClickHandler);
+                this.canvas.removeEventListener("touchstart", canvasClickHandler);
+
+                foundation.cleanup_();
+            };
+
+            const dataObj = {
+                message: "Нажмите в том месте страницы, где хотите разместить ограничитель",
+                actionText: "Отмена",
+                multiline: true,
+                actionHandler: () => {
+                    this.canvas.removeEventListener("click", canvasClickHandler);
+                    this.canvas.removeEventListener("touchstart", canvasClickHandler);
+                }
+            };
+
+            if (!foundation.active_) {
+                this.snackbar.show(dataObj);
+                this.canvas.addEventListener("click", canvasClickHandler);
+                this.canvas.addEventListener("touchstart", canvasClickHandler);
+            }
+
+            // Очищаем timeout, чтобы Snackbar не закрылся автоматически
+            clearTimeout(foundation.timeoutId_);
         }
     }
 

@@ -1,5 +1,5 @@
 #canvas {
-    position: absolute;
+    position: fixed;
 
     top: 0;
     right: 0;
@@ -23,4 +23,23 @@
 
 .mdc-switch {
     margin-top: 16px;
+}
+
+button.app-fab--absolute {
+    position: fixed;
+
+    bottom: 1rem;
+    right: 1rem;
+}
+
+@media (min-width: 1024px) {
+    .mdc-card {
+        top: 1.5rem;
+        right: 1.5rem;
+    }
+
+    button.app-fab--absolute {
+        bottom: 1.5rem;
+        right: 1.5rem;
+    }
 }

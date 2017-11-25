@@ -3,8 +3,11 @@ define(function () {
         /**
          * Создаёт ограничитель
          */
-        constructor() {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
 
+            this.radius = 10;
         }
 
         /**
@@ -12,7 +15,10 @@ define(function () {
          * @param context Контекст 2D рендеринга для элемента canvas
          */
         draw(context) {
-
+            context.beginPath();
+            context.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+            context.fillStyle = "#607D8B"; // Blue Grey
+            context.fill();
         }
 
         /**
@@ -21,14 +27,11 @@ define(function () {
          * @param my Координата y точки
          */
         contains(mx, my) {
+            const xSquared = Math.pow(mx - this.x, 2);
+            const ySquared = Math.pow(my - this.y, 2);
+            const radiusSquared = Math.pow(this.radius, 2);
 
-        }
-
-        /**
-         * Возвращает центральные координаты фигуры
-         */
-        getCenter() {
-
+            return xSquared + ySquared < radiusSquared;
         }
     }
 

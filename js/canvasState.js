@@ -1,4 +1,4 @@
-define(['grid', 'pendulum'], function (Grid, Pendulum) {
+define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
     class CanvasState {
         constructor(canvas) {
             // **** Options! ****
@@ -100,21 +100,32 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             setInterval(() => myState.redraw(), myState.interval);
         }
 
-        addShape(shape) {
-            const myState = this;
-            const listener = function (event) {
-                const center = shape.getCenter();
+        static handlePointerDown(mX, mY, myState) {
+            const shapes = myState.shapes;
+            let mySelection;
 
-                shape.x = event.pageX - center.x;
-                shape.y = event.pageY - center.y;
+            // Ищем выделение среди фигур
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (shapes[i].contains(mX, mY)) {
+                    mySelection = shapes[i];
+                }
+            }
 
-                myState.shapes.push(shape);
+            // Если маятник не запущен, проверяем, выделен ли он
+            if (!myState.pendulum.run && myState.pendulum.contains(mX, mY)) {
+                mySelection = myState.pendulum;
+            }
+
+            if (mySelection !== undefined) {
+                // Keep track of where in the object we clicked
+                // so we can move it smoothly (see mousemove)
+                myState.dragOffX = mX - mySelection.x;
+                myState.dragOffY = mY - mySelection.y;
+
+                myState.dragging = true;
+                myState.selection = mySelection;
                 myState.valid = false;
-
-                myState.canvas.removeEventListener('click', listener)
-            };
-
-            this.canvas.addEventListener('click', listener);
+            }
         }
 
         clear() {
@@ -233,49 +244,21 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             this.valid = false;
         }
 
-        static handlePointerDown(mX, mY, myState) {
-            const shapes = myState.shapes;
+        static handlePointerUp(myState) {
+            // Если при отпускании мыши изменился угол маятника, обновляем эти данные
+            if (myState.selection === myState.pendulum) {
+                const newAngle = myState.pendulum.calcAngle();
 
-            // Ищем выделение среди фигур
-            for (let i = shapes.length - 1; i >= 0; i--) {
-                if (shapes[i].contains(mX, mY)) {
-                    const mySelection = shapes[i];
-
-                    // Keep track of where in the object we clicked
-                    // so we can move it smoothly (see mousemove)
-                    myState.dragOffX = mX - mySelection.x;
-                    myState.dragOffY = mY - mySelection.y;
-
-                    myState.dragging = true;
-                    myState.selection = mySelection;
-                    myState.valid = false;
-
-                    return;
+                if (newAngle !== myState.pendulum.angle0) {
+                    myState.updatePendulumData(newAngle, null, null);
                 }
             }
 
-            // Если маятник не запущен, проверяем, выделен ли он
-            if (!myState.pendulum.run && myState.pendulum.contains(mX, mY)) {
-                const mySelection = myState.pendulum;
+            myState.dragging = false;
 
-                // Keep track of where in the object we clicked
-                // so we can move it smoothly (see mousemove)
-                myState.dragOffX = mX - mySelection.x;
-                myState.dragOffY = mY - mySelection.y;
-
-                myState.dragging = true;
-                myState.selection = mySelection;
-                myState.valid = false;
-
-                return;
-            }
-
-            // haven't returned means we have failed to select anything.
-            // If there was an object selected, we deselect it
-            if (myState.selection) {
-                myState.selection = null;
-                myState.valid = false; // Need to clear the old selection border
-            }
+            // Снимаем выделение
+            myState.selection = null;
+            myState.valid = false;
         }
 
         static handlePointerMove(mX, mY, myState) {
@@ -303,19 +286,11 @@ define(['grid', 'pendulum'], function (Grid, Pendulum) {
             }
         }
 
-        static handlePointerUp(myState) {
-            // Если при отпускании мыши изменился угол маятника, обновляем эти данные
-            if (myState.selection === myState.pendulum) {
-                const newAngle = myState.pendulum.calcAngle();
+        addLimiter(x, y) {
+            const limiter = new Limiter(x, y);
 
-                if (newAngle !== myState.pendulum.angle0) {
-                    myState.updatePendulumData(newAngle, null, null);
-                }
-            }
-
-            myState.dragging = false;
-            myState.selection = null;
-            myState.valid = false;
+            this.shapes.push(limiter);
+            this.valid = false;
         }
     }
 

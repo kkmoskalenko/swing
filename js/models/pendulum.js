@@ -253,6 +253,7 @@ define(function () {
             const x = context.canvas.width / 2;
             const y = 30;
 
+            context.fillStyle = "#000000"; // Black
             context.font = "30px sans-serif";
             context.textAlign = "center";
             context.fillText(angle, x, y);
