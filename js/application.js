@@ -1,7 +1,10 @@
-define(['mdc', 'canvasState'], function (mdc, CanvasState) {
+define(["mdc", "canvasState"], function (mdc, CanvasState) {
     class Application {
+        /**
+         * Создаёт новое приложение
+         */
         constructor() {
-            this.canvas = document.getElementById('canvas');
+            this.canvas = document.getElementById("canvas");
             this.canvasState = new CanvasState(this.canvas);
 
             // MDC
@@ -23,10 +26,10 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
             this.decelerationEl.value = this.canvasState.defaultPendulumOptions.deceleration;
 
             // Инициализируем Snackbar
-            this.snackbar = new MDCSnackbar(document.querySelector('.mdc-snackbar'));
+            this.snackbar = new MDCSnackbar(document.querySelector(".mdc-snackbar"));
 
             // Инициализируем FAB
-            this.fab = document.querySelector('.mdc-fab');
+            this.fab = document.querySelector(".mdc-fab");
             mdc.ripple.MDCRipple.attachTo(this.fab);
 
             // Инициализируем переключатель
@@ -56,6 +59,9 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
             this.fab.addEventListener("click", () => this.fabClickHandler());
         }
 
+        /**
+         * Обрабатывает изменение положения переключателя
+         */
         toggleChangeHandler() {
             this.canvasState.pendulum.run = this.toggleEl.checked;
             this.canvasState.valid = false;
@@ -77,6 +83,9 @@ define(['mdc', 'canvasState'], function (mdc, CanvasState) {
             }));
         }
 
+        /**
+         * Обрабатывает нажатие плавающей кнопки
+         */
         fabClickHandler() {
             const foundation = this.snackbar.foundation_;
 

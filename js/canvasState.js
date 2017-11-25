@@ -1,20 +1,16 @@
-define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
+define(["grid", "pendulum", "limiter"], function (Grid, Pendulum, Limiter) {
     class CanvasState {
+        /**
+         * Создаёт новый CanvasState
+         * @param canvas HTML5 элемент "Canvas"
+         */
         constructor(canvas) {
-            // **** Options! ****
+            // Настройки по умолчанию
             this.selectionColor = "#F44336"; // Red
             this.selectionWidth = 2;
             this.interval = 30;
-
-            // **** First some setup! ****
-            this.canvas = canvas;
-            this.width = window.innerWidth;
-            this.height = window.innerHeight;
-            this.context = canvas.getContext('2d');
-
-            // Default pendulum options
             this.defaultPendulumOptions = {
-                x0: this.width / 2,
+                x0: window.innerWidth / 2,
                 y0: 60,
                 radius: 30,
                 angle0: 0,
@@ -22,6 +18,19 @@ define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
                 deceleration: 0,
                 run: false
             };
+
+
+            this.canvas = canvas;
+            this.context = canvas.getContext("2d");
+
+            this.valid = false; // Если это значение ложно, всё полотно будет перерисовано
+            this.shapes = [];  // Массив с объектами, которые будут нарисованы
+
+            this.selection = null; // Выбранный объект
+            this.dragging = false; // Хранит информацию, перемещают ли выбранный объект в данный момент
+
+            this.dragOffX = 0;
+            this.dragOffY = 0;
 
             // Добавляем маятник
             this.pendulum = new Pendulum(
@@ -34,128 +43,85 @@ define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
                 this.defaultPendulumOptions.run
             );
 
-            // **** Keep track of state! ****
-            this.valid = false; // when set to false, the canvas will redraw everything
-            this.shapes = [];  // the collection of things to be drawn
-            this.dragging = false; // Keep track of when we are dragging the current selected object. In the future we could turn this into an array for multiple selection
-            this.selection = null;
-            this.dragOffX = 0; // See mousedown and mousemove events for explanation
-            this.dragOffY = 0;
 
-            // **** Then events! ****
-
-            // Right here "this" means the CanvasState. But we are making events on the Canvas itself,
-            // and when the events are fired on the canvas the variable "this" is going to mean the canvas!
-            // Since we still want to use this particular CanvasState in the events we have to save a reference to it.
-            // This is our reference!
-            const myState = this;
-
-            // Resize the canvas when the window is resized
-            window.addEventListener('resize', () => this.resizeCanvas(), false);
+            // Обработка изменения размера окна
+            window.addEventListener("resize", () => this.resizeCanvas(), false);
             this.resizeCanvas();
 
-            // Fixes a problem where double clicking causes text to get selected on the canvas
-            canvas.addEventListener('selectstart', (event) => {
+            // Исправляет ошибку, приводящую к выделению текста
+            canvas.addEventListener("selectstart", (event) => {
                 event.preventDefault();
+
                 return false;
             }, false);
 
-            // Up, down, and move are for dragging
-            canvas.addEventListener("mousedown", (event) => CanvasState.handlePointerDown(event.pageX, event.pageY, myState), true);
-            canvas.addEventListener("mousemove", (event) => CanvasState.handlePointerMove(event.pageX, event.pageY, myState), true);
-            canvas.addEventListener("mouseup", () => CanvasState.handlePointerUp(myState), true);
+            // Обработка перетаскивания объектов мышью
+            canvas.addEventListener("mousedown", (event) => this.handlePointerDown(event.pageX, event.pageY), true);
+            canvas.addEventListener("mousemove", (event) => this.handlePointerMove(event.pageX, event.pageY), true);
+            canvas.addEventListener("mouseup", () => this.handlePointerUp(), true);
 
-            // Handle touch events
-            canvas.addEventListener('touchstart', (event) => {
+            // Обработка перетаскивания объектов на сенсорных экранах
+            canvas.addEventListener("touchstart", (event) => {
                 const touches = event.changedTouches;
                 const firstTouch = touches[0];
 
-                const mX = firstTouch.pageX;
-                const mY = firstTouch.pageY;
+                const x = firstTouch.pageX;
+                const y = firstTouch.pageY;
 
-                CanvasState.handlePointerDown(mX, mY, myState);
+                this.handlePointerDown(x, y);
 
                 event.preventDefault();
             }, true);
 
-            canvas.addEventListener('touchmove', (event) => {
+            canvas.addEventListener("touchmove", (event) => {
                 const touches = event.changedTouches;
                 const firstTouch = touches[0];
 
-                const mX = firstTouch.pageX;
-                const mY = firstTouch.pageY;
+                const x = firstTouch.pageX;
+                const y = firstTouch.pageY;
 
-                CanvasState.handlePointerMove(mX, mY, myState);
-
-                event.preventDefault();
-            }, true);
-
-            canvas.addEventListener('touchend', () => {
-                CanvasState.handlePointerUp(myState);
+                this.handlePointerMove(x, y);
 
                 event.preventDefault();
             }, true);
 
+            canvas.addEventListener("touchend", () => {
+                this.handlePointerUp();
 
-            setInterval(() => myState.redraw(), myState.interval);
+                event.preventDefault();
+            }, true);
+
+
+            // Запуска таймера перерисовки
+            setInterval(() => this.redraw(), this.interval);
         }
 
-        static handlePointerDown(mX, mY, myState) {
-            const shapes = myState.shapes;
-            let mySelection;
-
-            // Ищем выделение среди фигур
-            for (let i = shapes.length - 1; i >= 0; i--) {
-                if (shapes[i].contains(mX, mY)) {
-                    mySelection = shapes[i];
-                }
-            }
-
-            // Если маятник не запущен, проверяем, выделен ли он
-            if (!myState.pendulum.run && myState.pendulum.contains(mX, mY)) {
-                mySelection = myState.pendulum;
-            }
-
-            if (mySelection !== undefined) {
-                // Keep track of where in the object we clicked
-                // so we can move it smoothly (see mousemove)
-                myState.dragOffX = mX - mySelection.x;
-                myState.dragOffY = mY - mySelection.y;
-
-                myState.dragging = true;
-                myState.selection = mySelection;
-                myState.valid = false;
-            }
-        }
-
+        /**
+         * Очищает холст
+         */
         clear() {
-            this.context.clearRect(0, 0, this.width, this.height);
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
 
+        /**
+         * Выполняет все необходимые операции для конеретного отображения приложения после изменения размера окна
+         */
         resizeCanvas() {
             this.canvas.width = window.innerWidth;
             this.canvas.height = window.innerHeight;
 
-            this.width = window.innerWidth;
-            this.height = window.innerHeight;
-
-            this.pendulum.x0 = this.width / 2; // При изменении размера окна, перемещаем точку крепления маятника в середину страницы (по горизонтали)
-            this.defaultPendulumOptions.x0 = this.width / 2;
-
-            const run = this.pendulum.run;
-            if (run) {
-                // Если маятник запущен, то останавливаем маятник на момент перерисовки, вызванной изменением размера окна
-                this.pendulum.run = false;
-            }
-
-            this.pendulum.run = run; // После перерисовки возвращаем маятник в исходное состоянее (запущен или нет)
+            // При изменении размера окна, перемещаем точку крепления маятника в середину страницы (по горизонтали)
+            this.pendulum.x0 = this.canvas.width / 2;
+            this.defaultPendulumOptions.x0 = this.canvas.width / 2;
 
             this.valid = false;
         }
 
-        /* While redraw is called as often as the INTERVAL variable demands,
-        It only ever does something if the canvas gets invalidated by our code */
+        /**
+         * Перерисовывает всё содержимое холста
+         */
         redraw() {
+            // Если состояние полотна ещё не изменялось, отменяем перерисовку
             if (this.valid) return;
 
             const context = this.context;
@@ -163,35 +129,39 @@ define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
             const interval = this.interval;
             const pendulum = this.pendulum;
 
+            // Очищаем полотно
             this.clear();
 
-            // Draw the grid in the background
-            const grid = new Grid(30, "#CFD8DC", "#90A4AE"); // Grid color: Blue Grey 100. Guide color: Blue Grey 300.
+            // Рисуем координатную плоскость на заднем плане
+            const grid = new Grid(30, "#CFD8DC", "#90A4AE"); // Цвет сетки: Blue Grey 100. Цвет направляющей: Blue Grey 300.
             grid.draw(context);
 
-            // Draw pendulum
+            // Рисуем маятник
             const pendulumIsDragging = this.selection === this.pendulum;
             pendulum.draw(context, interval, pendulumIsDragging);
 
-            // Redraw all shapes
+            // Рисуем все фигуры
             for (let i = 0; i < shapes.length; i++) {
                 const shape = shapes[i];
-                // We can skip the drawing of elements that have moved off the screen:
-                if (shape.x > this.width || shape.y > this.height ||
-                    shape.x + shape.width < 0 || shape.y + shape.height < 0) continue;
+
+                // Пропускаем рисование объектов, которые находятся за границами полотна
+                if (shape.x > this.canvas.width || shape.y > this.canvas.height ||
+                    shape.x + shape.width < 0 || shape.y + shape.height < 0) {
+                    continue;
+                }
+
                 shapes[i].draw(context);
             }
 
-            // redraw selection
-            // right now this is just a stroke along the edge of the selected Shape
+            // Рисуем выделение – обводку вокруг выделенной фигуры
             if (this.selection !== null) {
-                const mySelection = this.selection;
+                const selection = this.selection;
 
                 context.strokeStyle = this.selectionColor;
                 context.lineWidth = this.selectionWidth;
 
                 context.beginPath();
-                context.arc(mySelection.x, mySelection.y, mySelection.radius, 0, Math.PI * 2); // Допущение: выделение работает только для круглых фигур
+                context.arc(selection.x, selection.y, selection.radius, 0, Math.PI * 2);
                 context.stroke();
             }
 
@@ -201,6 +171,24 @@ define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
             }
         }
 
+        /**
+         * Добавляет точечный ограничитель по указанным координатам
+         * @param x Координата x ограничителя
+         * @param y Координата y ограничителя
+         */
+        addLimiter(x, y) {
+            const limiter = new Limiter(x, y);
+
+            this.shapes.push(limiter);
+            this.valid = false;
+        }
+
+        /**
+         * Обновляет параметры маятника
+         * @param angle Угол отклонения
+         * @param length Длина подвеса
+         * @param deceleration Коэффицент затухания
+         */
         updatePendulumData(angle, length, deceleration) {
             let run;
 
@@ -244,52 +232,81 @@ define(['grid', 'pendulum', 'limiter'], function (Grid, Pendulum, Limiter) {
             this.valid = false;
         }
 
-        static handlePointerUp(myState) {
-            // Если при отпускании мыши изменился угол маятника, обновляем эти данные
-            if (myState.selection === myState.pendulum) {
-                const newAngle = myState.pendulum.calcAngle();
+        /**
+         * Обрабатывает нажатие кнопки указывающего устройства
+         * @param x Координата x указателя
+         * @param y Координата y указателя
+         */
+        handlePointerDown(x, y) {
+            const shapes = this.shapes;
+            let selection;
 
-                if (newAngle !== myState.pendulum.angle0) {
-                    myState.updatePendulumData(newAngle, null, null);
+            // Ищем выделение среди фигур
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (shapes[i].contains(x, y)) {
+                    selection = shapes[i];
                 }
             }
 
-            myState.dragging = false;
+            // Если маятник не запущен, проверяем, выделен ли он
+            if (!this.pendulum.run && this.pendulum.contains(x, y)) {
+                selection = this.pendulum;
+            }
 
-            // Снимаем выделение
-            myState.selection = null;
-            myState.valid = false;
+            if (selection !== undefined) {
+                this.dragOffX = x - selection.x;
+                this.dragOffY = y - selection.y;
+
+                this.dragging = true;
+                this.selection = selection;
+                this.valid = false;
+            }
         }
 
-        static handlePointerMove(mX, mY, myState) {
-            if (myState.dragging) {
-                // We don't want to drag the object by its top-left corner, we want to drag it
-                // from where we clicked. That's why we saved the offset and use it here
-                const mouseX = mX - myState.dragOffX;
-                const mouseY = mY - myState.dragOffY;
+        /**
+         * Обрабатывает движение указателя
+         * @param x Координата x указателя
+         * @param y Координата y указателя
+         */
+        handlePointerMove(x, y) {
+            if (this.dragging) {
+                const mouseX = x - this.dragOffX;
+                const mouseY = y - this.dragOffY;
 
-                if (myState.selection === myState.pendulum) {
+                if (this.selection === this.pendulum) {
                     // При попытке переместить груз маятника, ограничиваем траекторию перемещения
                     // Груз маятника может двигаться только по окружности с центром в точке крепления и радиусом равным длине шнура
+                    const point = this.pendulum.calcTheClosestPoint(mouseX, mouseY);
 
-                    const point = myState.pendulum.calcTheClosestPoint(mouseX, mouseY);
-
-                    myState.selection.x = point.x;
-                    myState.selection.y = point.y;
+                    this.selection.x = point.x;
+                    this.selection.y = point.y;
                 }
                 else {
-                    myState.selection.x = mouseX;
-                    myState.selection.y = mouseY;
+                    this.selection.x = mouseX;
+                    this.selection.y = mouseY;
                 }
 
-                myState.valid = false; // Something's dragging so we must redraw
+                this.valid = false;
             }
         }
 
-        addLimiter(x, y) {
-            const limiter = new Limiter(x, y);
+        /**
+         * Обрабатывает отпускание кнопки указывающего устройства
+         */
+        handlePointerUp() {
+            // Если при отпускании мыши изменился угол маятника, обновляем эти данные
+            if (this.selection === this.pendulum) {
+                const newAngle = this.pendulum.calcAngle();
 
-            this.shapes.push(limiter);
+                if (newAngle !== this.pendulum.angle0) {
+                    this.updatePendulumData(newAngle, null, null);
+                }
+            }
+
+            this.dragging = false;
+
+            // Снимаем выделение
+            this.selection = null;
             this.valid = false;
         }
     }
