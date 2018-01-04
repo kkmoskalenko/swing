@@ -1,3 +1,5 @@
+import Utils from "../utilities/PendulumUtilities";
+
 class Pendulum {
     /**
      * Создаёт маятник
@@ -22,56 +24,15 @@ class Pendulum {
         this.y = this.y0;
 
         this.radius = radius;
-        this.amplitude = Pendulum.calcAmplitude(angle0, length);
+        this.amplitude = Utils.calcAmplitude(angle0, length);
         this.length = length;
         this.deceleration = deceleration;
 
         this.time = 0; // Время
-        this.period = Pendulum.calcPeriod(length / this.coef); // Период колебаний
+        this.period = Utils.calcPeriod(length / this.coef); // Период колебаний
 
         this.run = run;
     }
-
-    /**
-     * Вычисляет амплитуду колебания
-     * @param angle Угол начального отклонения (в градусах)
-     * @param length Длина подвеса
-     * @returns {number} Амплитуда колебания
-     */
-    static calcAmplitude(angle, length) {
-        const angleInRad = Pendulum.radians(angle);
-
-        return Math.sin(angleInRad) * length;
-    }
-
-    /**
-     * Вычисляет период колебания
-     * @param length Длина подвеса
-     * @returns {number} Период колебания
-     */
-    static calcPeriod(length) {
-        const g = 9.80665; // Среднее ускорение свободного падения на Земле
-
-        return 2 * Math.PI * Math.sqrt(length / g);
-    }
-
-    /**
-     * Конвертирует градусы в радианы
-     * @param degrees Значение в градусах
-     * @returns {number} Значение в радианах
-     */
-    static radians(degrees) {
-        return degrees * Math.PI / 180;
-    };
-
-    /**
-     * Конвертирует радианы в градусы
-     * @param radians Значение в радианах
-     * @returns {number} Значение в градусах
-     */
-    static degrees(radians) {
-        return radians * 180 / Math.PI;
-    };
 
     /**
      * Вычисляет предварительное значение x (без учёта начальных координат)
@@ -105,21 +66,6 @@ class Pendulum {
     }
 
     /**
-     * Вычисляет длину отрезка по координатам начальной и конечной точек
-     * @param x0 Координата x начальной точки
-     * @param y0 Координата y начальной точки
-     * @param x Координата x конечной точки
-     * @param y Координата y конечной точки
-     * @returns {number} Длина отрезка
-     */
-    static calcLineSegmentLength(x0, y0, x, y) {
-        const xSquared = Math.pow(x - x0, 2);
-        const ySquared = Math.pow(y - y0, 2);
-
-        return Math.sqrt(xSquared + ySquared);
-    }
-
-    /**
      * Вычисляет текущий угол поворота маятника
      * @returns {number} Угол в градусах
      */
@@ -127,7 +73,7 @@ class Pendulum {
         // Длины сторон треугольника
         const a = this.length;
         const b = this.length;
-        const c = Pendulum.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
+        const c = Utils.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
 
         // Длины сторон треугольника, возведённые в квадрат
         const aSquared = Math.pow(a, 2);
@@ -139,10 +85,10 @@ class Pendulum {
 
         // TODO: Исправить логику
         if (this.x < this.x0) {
-            return Pendulum.degrees(-angle);
+            return Utils.degrees(-angle);
         }
         else {
-            return Pendulum.degrees(angle);
+            return Utils.degrees(angle);
         }
     }
 
@@ -229,7 +175,7 @@ class Pendulum {
         const cY = this.y0 - this.length;
         const radius = 60; // Радиус значка угла
         const startAngle = 0.5 * Math.PI;
-        const endAngle = Pendulum.radians(90 - this.calcAngle());
+        const endAngle = Utils.radians(90 - this.calcAngle());
         const counterClockwise = endAngle < startAngle;
 
         context.fillStyle = "rgba(244, 67, 54, 0.5)"; // Red, 50% opacity
