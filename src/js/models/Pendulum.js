@@ -1,4 +1,5 @@
-import Utils from "../utilities/PendulumUtilities";
+import PendulumUtilities from "../utilities/PendulumUtilities";
+import MathUtilities from "../utilities/MathUtilities";
 
 class Pendulum {
     /**
@@ -24,12 +25,12 @@ class Pendulum {
         this.y = this.y0;
 
         this.radius = radius;
-        this.amplitude = Utils.calcAmplitude(angle0, length);
+        this.amplitude = PendulumUtilities.calcAmplitude(angle0, length);
         this.length = length;
         this.deceleration = deceleration;
 
         this.time = 0; // Время
-        this.period = Utils.calcPeriod(length / this.coef); // Период колебаний
+        this.period = PendulumUtilities.calcPeriod(length / this.coef); // Период колебаний
 
         this.run = run;
     }
@@ -73,7 +74,7 @@ class Pendulum {
         // Длины сторон треугольника
         const a = this.length;
         const b = this.length;
-        const c = Utils.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
+        const c = MathUtilities.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
 
         // Длины сторон треугольника, возведённые в квадрат
         const aSquared = Math.pow(a, 2);
@@ -83,13 +84,9 @@ class Pendulum {
         // Находим неизвестный угол (в радианах) по преобразованной теореме синусов
         const angle = Math.acos((aSquared + bSquared - cSquared) / (2 * a * b));
 
-        // TODO: Исправить логику
-        if (this.x < this.x0) {
-            return Utils.degrees(-angle);
-        }
-        else {
-            return Utils.degrees(angle);
-        }
+        return this.x < this.x0 ?
+            MathUtilities.degrees(-angle) :
+            MathUtilities.degrees(angle);
     }
 
     /**
@@ -105,6 +102,23 @@ class Pendulum {
             x: this.length * Math.cos(angleInRads) + this.x0,
             y: this.length * Math.sin(angleInRads) + (this.y0 - this.length)
         }
+    }
+
+    /**
+     * Возращает пары координат, задающие положение нити, на которой висит груз
+     * @returns {*[]} Массив пар координат (x и y)
+     */
+    getCordVertices() {
+        return [
+            {
+                x: this.x0,
+                y: this.y0 - this.length
+            },
+            {
+                x: this.x,
+                y: this.y
+            }
+        ]
     }
 
     /**
@@ -175,7 +189,7 @@ class Pendulum {
         const cY = this.y0 - this.length;
         const radius = 60; // Радиус значка угла
         const startAngle = 0.5 * Math.PI;
-        const endAngle = Utils.radians(90 - this.calcAngle());
+        const endAngle = MathUtilities.radians(90 - this.calcAngle());
         const counterClockwise = endAngle < startAngle;
 
         context.fillStyle = "rgba(244, 67, 54, 0.5)"; // Red, 50% opacity

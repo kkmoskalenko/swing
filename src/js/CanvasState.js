@@ -153,7 +153,27 @@ class CanvasState {
                 continue;
             }
 
-            shapes[i].draw(context);
+            // Точки, задающие положение нити маятника
+            const vertices = pendulum.getCordVertices();
+
+            for (let i = 0; i < vertices.length; i++) {
+
+                // Останавливаем цикл, когда дошли до последней вершины
+                if (i + 1 === vertices.length) {
+                    break;
+                }
+
+                const vertex = vertices[i];
+                const nextVertex = vertices[i + 1];
+
+                if (shape.adjoinsTheLineSegment(vertex.x, vertex.y, nextVertex.x, nextVertex.y)) {
+                    // TODO: Заменить вывод в консоль на логирование
+                    console.log(`Нить маятника встретилась с препятствием в точке (${shape.x}, ${shape.y}).`);
+                }
+            }
+
+
+            shape.draw(context);
         }
 
         // Рисуем выделение – обводку вокруг выделенной фигуры
