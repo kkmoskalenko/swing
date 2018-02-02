@@ -232,25 +232,12 @@ class CanvasState {
             }
         }
 
-        // Если не получилось установить данные от старого маятника, устанавливаем стандартные
-        if (!Number.isFinite(angle)) {
-            angle = this.defaultPendulumOptions.angle0;
-        }
+        // Устанавливаем полученные данные на маятник
+        this.pendulum.setAngle(angle);
+        this.pendulum.setLength(length);
+        this.pendulum.setDeceleration(deceleration);
 
-        if (!Number.isFinite(length)) {
-            length = this.defaultPendulumOptions.length;
-        }
-
-        if (!Number.isFinite(deceleration)) {
-            deceleration = this.defaultPendulumOptions.deceleration;
-        }
-
-        if (run === undefined || run === null) {
-            run = this.defaultPendulumOptions.run;
-        }
-
-        // Создаём новый маятник
-        this.pendulum = new Pendulum(this.defaultPendulumOptions.x0, this.defaultPendulumOptions.y0, this.defaultPendulumOptions.radius, angle, length, deceleration, run);
+        this.pendulum.run = run;
 
         this.valid = false;
     }

@@ -4,33 +4,34 @@ import MathUtilities from "../utilities/MathUtilities";
 class Pendulum {
     /**
      * Создаёт маятник
-     * @param supportX0 Координата точки крепления маятника по оси X
-     * @param supportY0 Координата точки крепления маятника по оси Y
+     * @param supportX Координата точки крепления маятника по оси X
+     * @param supportY Координата точки крепления маятника по оси Y
      * @param radius Радиус груза (так как он имеет форму шара)
      * @param angle0 Угол начального отклонения маятника (в градусах)
      * @param length Длина подвеса
      * @param deceleration Коэффицент затухания
      * @param run Запущен ли маятник при создании
      */
-    constructor(supportX0, supportY0, radius, angle0, length, deceleration, run) {
+    constructor(supportX, supportY, radius, angle0, length, deceleration, run) {
         this.coef = 400; // Коэффециент масштабирования длины нити
-        length *= this.coef;
+
+        // Координаты точки крепления маятника
+        // this.supportX = supportX;
+        this.supportY = supportY;
 
         // Начальные координаты маятника
-        this.x0 = supportX0;
-        this.y0 = supportY0 + length;
+        this.x0 = supportX;
+        this.y0 = supportY;
 
         // Текущие координаты маятника
         this.x = this.x0;
         this.y = this.y0;
 
         this.radius = radius;
-        this.amplitude = PendulumUtilities.calcAmplitude(angle0, length);
-        this.length = length;
-        this.deceleration = deceleration;
 
-        this.time = 0; // Время
-        this.period = PendulumUtilities.calcPeriod(length / this.coef); // Период колебаний
+        this.setAngle(angle0);
+        this.setLength(length);
+        this.setDeceleration(deceleration);
 
         this.run = run;
     }
@@ -82,11 +83,12 @@ class Pendulum {
         const cSquared = Math.pow(c, 2);
 
         // Находим неизвестный угол (в радианах) по преобразованной теореме синусов
-        const angle = Math.acos((aSquared + bSquared - cSquared) / (2 * a * b));
+        let angle = Math.acos((aSquared + bSquared - cSquared) / (2 * a * b));
+        angle = this.x < this.x0 ? -angle : angle;
 
-        return this.x < this.x0 ?
-            MathUtilities.degrees(-angle) :
-            MathUtilities.degrees(angle);
+        return Math.round(
+            MathUtilities.degrees(angle)
+        );
     }
 
     /**
@@ -207,7 +209,7 @@ class Pendulum {
      * @param context Контекст 2D рендеринга для элемента canvas
      */
     writeAngleValue(context) {
-        const angle = Math.round(this.calcAngle()) + "°";
+        const angle = this.calcAngle() + "°";
 
         const x = context.canvas.width / 2;
         const y = 30;
@@ -257,6 +259,51 @@ class Pendulum {
         this.drawCord(context);
         this.drawBob(context);
         this.drawSupport(context);
+    }
+
+    /**
+     * Заменяет текущий угол отклонения маятника на указанное значение
+     * @param angle Угол отклонения маятника (в градусах)
+     */
+    setAngle(angle) {
+        if (angle === null) {
+            return;
+        }
+
+        this.angle0 = angle;
+        this.amplitude = PendulumUtilities.calcAmplitude(angle, this.length);
+
+        this.time = 0;
+    }
+
+    /**
+     * Заменяет текущую длину подвеса маятника на указанное значение
+     * @param length Длина подвеса маятника
+     */
+    setLength(length) {
+        if (length === null) {
+            return;
+        }
+
+        length *= this.coef;
+
+        this.y0 = this.supportY + length;
+        this.length = length;
+
+        this.amplitude = PendulumUtilities.calcAmplitude(this.angle0, length); // Амплитуда колебания
+        this.period = PendulumUtilities.calcPeriod(length / this.coef); // Период колебаний
+    }
+
+    /**
+     * Заменяет текущий коэффицент затухания маятника на указанное значение
+     * @param deceleration Коэффицент затухания маятника
+     */
+    setDeceleration(deceleration) {
+        if (deceleration === null) {
+            return;
+        }
+
+        this.deceleration = deceleration;
     }
 }
 
