@@ -29,11 +29,14 @@ class Limiter {
      * @returns {boolean} Результат проверки
      */
     contains(mx, my) {
-        const xSquared = Math.pow(mx - this.x, 2);
+        /*const xSquared = Math.pow(mx - this.x, 2);
         const ySquared = Math.pow(my - this.y, 2);
         const radiusSquared = Math.pow(this.radius, 2);
 
-        return xSquared + ySquared < radiusSquared;
+        return xSquared + ySquared < radiusSquared;*/
+
+        // TODO: Вернуть метод к прежнему состоянию
+        return false;
     }
 
     /**

@@ -9,7 +9,7 @@ class Application {
      */
     constructor() {
         this.canvas = document.getElementById("canvas");
-        this.canvasState = new CanvasState(this.canvas);
+        this.canvasState = new CanvasState(this.canvas, () => this.setLengthFieldValue());
 
         // Инициализируем поля ввода MDC
         this.inputFields = Array.from(document.querySelectorAll(".mdc-text-field"));
@@ -44,13 +44,19 @@ class Application {
         // Регистрируем обработчики событий для элементов управления
         this.lengthEl.addEventListener("change", () => {
             if (this.lengthEl.checkValidity()) {
-                this.canvasState.updatePendulumData(null, parseFloat(this.lengthEl.value), null);
+                const lengthValue = parseFloat(this.lengthEl.value);
+
+                this.canvasState.pendulum.setLength(lengthValue);
+                this.canvasState.valid = false;
             }
         });
 
         this.decelerationEl.addEventListener("change", () => {
             if (this.decelerationEl.checkValidity()) {
-                this.canvasState.updatePendulumData(null, null, parseFloat(this.decelerationEl.value));
+                const decelerationValue = parseFloat(this.decelerationEl.value);
+
+                this.canvasState.pendulum.setDeceleration(decelerationValue);
+                this.canvasState.valid = false;
             }
         });
 
@@ -129,6 +135,16 @@ class Application {
 
         // Очищаем timeout, чтобы Snackbar не закрылся автоматически
         clearTimeout(foundation.timeoutId_);
+    }
+
+    /**
+     * Получает длину  подвеса последнего участка маятника и устанавливает это число в поле ввода
+     */
+    setLengthFieldValue() {
+        const pendulum = this.canvasState.pendulum;
+        const length = pendulum.length / pendulum.coef;
+
+        this.lengthEl.value = length.toFixed(2);
     }
 }
 

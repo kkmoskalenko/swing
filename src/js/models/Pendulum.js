@@ -15,10 +15,6 @@ class Pendulum {
     constructor(supportX, supportY, radius, angle0, length, deceleration, run) {
         this.coef = 400; // Коэффециент масштабирования длины нити
 
-        // Координаты точки крепления маятника
-        // this.supportX = supportX;
-        this.supportY = supportY;
-
         // Начальные координаты маятника
         this.x0 = supportX;
         this.y0 = supportY;
@@ -26,6 +22,13 @@ class Pendulum {
         // Текущие координаты маятника
         this.x = this.x0;
         this.y = this.y0;
+
+        // Массив координат, задающих положение подвеса
+        this.vertices = [];
+        this.vertices.push({
+            x: supportX,
+            y: supportY
+        });
 
         this.radius = radius;
 
@@ -72,10 +75,12 @@ class Pendulum {
      * @returns {number} Угол в градусах
      */
     calcAngle() {
+        const lastVertex = this.getLastVertex();
+
         // Длины сторон треугольника
         const a = this.length;
         const b = this.length;
-        const c = MathUtilities.calcLineSegmentLength(this.x0, this.y0 + this.length / this.coef, this.x, this.y);
+        const c = MathUtilities.calcLineSegmentLength(lastVertex.x, lastVertex.y + this.length, this.x, this.y);
 
         // Длины сторон треугольника, возведённые в квадрат
         const aSquared = Math.pow(a, 2);
@@ -92,17 +97,28 @@ class Pendulum {
     }
 
     /**
+     * Вычисляет длину последнего (активного) участка подвеса маятника
+     * @returns {number} Вычисленная длина
+     */
+    calcLength() {
+        const lastVertex = this.getLastVertex();
+
+        return MathUtilities.calcLineSegmentLength(lastVertex.x, lastVertex.y, this.x, this.y);
+    }
+
+    /**
      * Вычисляет ближайшую точку к указанной, но при этом достижимую подвесом
      * @param x Координата x указанной точки
      * @param y Координата y указанной точки
      * @returns {{x: *, y: *}} Координаты требуемой точки
      */
     calcTheClosestPoint(x, y) {
-        const angleInRads = Math.atan2(y - (this.y0 - this.length), x - this.x0);
+        const lastVertex = this.getLastVertex();
+        const angleInRads = Math.atan2(y - lastVertex.y, x - lastVertex.x);
 
         return {
-            x: this.length * Math.cos(angleInRads) + this.x0,
-            y: this.length * Math.sin(angleInRads) + (this.y0 - this.length)
+            x: this.length * Math.cos(angleInRads) + lastVertex.x,
+            y: this.length * Math.sin(angleInRads) + lastVertex.y
         }
     }
 
@@ -111,16 +127,53 @@ class Pendulum {
      * @returns {*[]} Массив пар координат (x и y)
      */
     getCordVertices() {
-        return [
-            {
-                x: this.x0,
-                y: this.y0 - this.length
-            },
-            {
-                x: this.x,
-                y: this.y
-            }
-        ]
+        const vertices = Object.assign([], this.vertices);
+
+        vertices.push({
+            x: this.x,
+            y: this.y
+        });
+
+        return vertices;
+    }
+
+    /**
+     * Возвращает координаты последней точки крепления маятника
+     * @returns {*} Пару координат: x и y
+     */
+    getLastVertex() {
+        return this.vertices[this.vertices.length - 1];
+    }
+
+    /**
+     * Добавляет точку, в которой нить маятника будет изогнута
+     * @param x Координата x вершины
+     * @param y Координата y вершины
+     * @returns {boolean} Удалось ли добавить вершину
+     */
+    addVertex(x, y) {
+        const newVertex = {
+            x: x,
+            y: y
+        };
+
+        // Если эта вершина уже добавлена, не добавляем её
+        if (this.vertices.some(vertex =>
+                vertex.x === newVertex.x &&
+                vertex.y === newVertex.y)) {
+            return false;
+        }
+        else {
+            const angle = this.calcAngle();
+
+            this.vertices.push(newVertex);
+
+            // Во время встречи с ограничителем, мгновенно изменяется длина подвеса маятника и угловая скорость
+            this.setLength(this.calcLength() / this.coef);
+            this.setAngle(angle);
+
+            return true;
+        }
     }
 
     /**
@@ -128,11 +181,14 @@ class Pendulum {
      * @param context Контекст 2D рендеринга для элемента canvas
      */
     drawSupport(context) {
+        const supportX = this.vertices[0].x;
+        const supportY = this.vertices[0].y;
+
         // Точка
         context.fillStyle = "#000000"; // Black
 
         context.beginPath();
-        context.arc(this.x0, this.y0 - this.length, 6, 0, Math.PI * 2);
+        context.arc(supportX, supportY, 6, 0, Math.PI * 2);
         context.fill();
 
         // Окружность вокрун точки
@@ -140,7 +196,7 @@ class Pendulum {
         context.lineWidth = 4;
 
         context.beginPath();
-        context.arc(this.x0, this.y0 - this.length, 10, 0, Math.PI * 2);
+        context.arc(supportX, supportY, 10, 0, Math.PI * 2);
         context.stroke();
     }
 
@@ -161,7 +217,20 @@ class Pendulum {
      * @param context Контекст 2D рендеринга для элемента canvas
      */
     drawCord(context) {
-        drawLine(this.x0, this.y0 - this.length, this.x, this.y, "#000000"); // Black
+        const vertices = this.getCordVertices();
+
+        for (let i = 0; i < vertices.length; i++) {
+
+            // Останавливаем цикл, когда дошли до последней вершины
+            if (i + 1 === vertices.length) {
+                break;
+            }
+
+            const vertex = vertices[i];
+            const nextVertex = vertices[i + 1];
+
+            drawLine(vertex.x, vertex.y, nextVertex.x, nextVertex.y, "#000000"); // Black
+        }
 
         /**
          * Рисует отрезок
@@ -187,8 +256,11 @@ class Pendulum {
      * @param context Контекст 2D рендеринга для элемента canvas
      */
     drawAngle(context) {
-        const cX = this.x0;
-        const cY = this.y0 - this.length;
+        const lastVertex = this.getLastVertex();
+
+        const cX = lastVertex.x;
+        const cY = lastVertex.y;
+
         const radius = 60; // Радиус значка угла
         const startAngle = 0.5 * Math.PI;
         const endAngle = MathUtilities.radians(90 - this.calcAngle());
@@ -209,10 +281,11 @@ class Pendulum {
      * @param context Контекст 2D рендеринга для элемента canvas
      */
     writeAngleValue(context) {
+        const lastVertex = this.getLastVertex();
         const angle = this.calcAngle() + "°";
 
-        const x = context.canvas.width / 2;
-        const y = 30;
+        const x = lastVertex.x;
+        const y = lastVertex.y - 30;
 
         context.fillStyle = "#000000"; // Black
         context.font = "30px sans-serif";
@@ -266,6 +339,8 @@ class Pendulum {
      * @param angle Угол отклонения маятника (в градусах)
      */
     setAngle(angle) {
+        // TODO: Добавить поддержку углов <-90° и >90°
+
         if (angle === null) {
             return;
         }
@@ -276,6 +351,9 @@ class Pendulum {
         this.time = 0;
     }
 
+    // FIXME: Иногда изменение длины подвеса или коэффицента затухания, может привести к изменению угла отклонения
+    // Это происходит, когда угол был установлен не вручную, а после остановки маятника
+
     /**
      * Заменяет текущую длину подвеса маятника на указанное значение
      * @param length Длина подвеса маятника
@@ -285,9 +363,11 @@ class Pendulum {
             return;
         }
 
+        const lastVertex = this.getLastVertex();
         length *= this.coef;
 
-        this.y0 = this.supportY + length;
+        this.x0 = lastVertex.x;
+        this.y0 = lastVertex.y + length;
         this.length = length;
 
         this.amplitude = PendulumUtilities.calcAmplitude(this.angle0, length); // Амплитуда колебания

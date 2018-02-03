@@ -6,15 +6,16 @@ class CanvasState {
     /**
      * Создаёт новый CanvasState
      * @param canvas HTML5 элемент "Canvas"
+     * @param callback Метод, который должен вызываться, когда изменится длина маятника
      */
-    constructor(canvas) {
+    constructor(canvas, callback) {
         // Настройки по умолчанию
         this.selectionColor = "#F44336"; // Red
         this.selectionWidth = 2;
         this.interval = 30;
         this.defaultPendulumOptions = {
-            x0: window.innerWidth / 2,
-            y0: 60,
+            supportX: window.innerWidth / 2,
+            supportY: 60,
             radius: 30,
             angle0: 0,
             length: 1,
@@ -25,6 +26,8 @@ class CanvasState {
 
         this.canvas = canvas;
         this.context = canvas.getContext("2d");
+
+        this.callback = callback;
 
         this.valid = false; // Если это значение ложно, всё полотно будет перерисовано
         this.shapes = [];  // Массив с объектами, которые будут нарисованы
@@ -37,8 +40,8 @@ class CanvasState {
 
         // Добавляем маятник
         this.pendulum = new Pendulum(
-            this.defaultPendulumOptions.x0,
-            this.defaultPendulumOptions.y0,
+            this.defaultPendulumOptions.supportX,
+            this.defaultPendulumOptions.supportY,
             this.defaultPendulumOptions.radius,
             this.defaultPendulumOptions.angle0,
             this.defaultPendulumOptions.length,
@@ -113,10 +116,6 @@ class CanvasState {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
 
-        // При изменении размера окна, перемещаем точку крепления маятника в середину страницы (по горизонтали)
-        this.pendulum.x0 = this.canvas.width / 2;
-        this.defaultPendulumOptions.x0 = this.canvas.width / 2;
-
         this.valid = false;
     }
 
@@ -138,6 +137,7 @@ class CanvasState {
         // Рисуем координатную плоскость на заднем плане
         const grid = new Grid(30, "#CFD8DC", "#90A4AE"); // Цвет сетки: Blue Grey 100. Цвет направляющей: Blue Grey 300.
         grid.draw(context);
+        grid.drawGuide(context, pendulum.x0);
 
         // Рисуем маятник
         const pendulumIsDragging = this.selection === this.pendulum;
@@ -155,20 +155,17 @@ class CanvasState {
 
             // Точки, задающие положение нити маятника
             const vertices = pendulum.getCordVertices();
+            const penultimateVertex = vertices[vertices.length - 2]; // Предпоследняя вершина
+            const lastVertex = vertices[vertices.length - 1]; // Последняя вершина (сам груз)
 
-            for (let i = 0; i < vertices.length; i++) {
+            // Сцепляем маятник с ограничителем только если это событие произошло на последнем отрезке подвеса
+            if (shape.adjoinsTheLineSegment(penultimateVertex.x, penultimateVertex.y, lastVertex.x, lastVertex.y)) {
+                if (pendulum.addVertex(shape.x, shape.y)) {
+                    // Произошло изменение длины последнего участка шнура, поэтому вызываем callback (оповещаем)
+                    this.callback();
 
-                // Останавливаем цикл, когда дошли до последней вершины
-                if (i + 1 === vertices.length) {
-                    break;
-                }
-
-                const vertex = vertices[i];
-                const nextVertex = vertices[i + 1];
-
-                if (shape.adjoinsTheLineSegment(vertex.x, vertex.y, nextVertex.x, nextVertex.y)) {
                     // TODO: Заменить вывод в консоль на логирование
-                    console.log(`Нить маятника встретилась с препятствием в точке (${shape.x}, ${shape.y}).`);
+                    console.log(`Подвес маятника встретился с препятствием в точке (${shape.x}, ${shape.y}).`);
                 }
             }
 
@@ -203,42 +200,6 @@ class CanvasState {
         const limiter = new Limiter(x, y);
 
         this.shapes.push(limiter);
-        this.valid = false;
-    }
-
-    /**
-     * Обновляет параметры маятника
-     * @param angle Угол отклонения
-     * @param length Длина подвеса
-     * @param deceleration Коэффицент затухания
-     */
-    updatePendulumData(angle, length, deceleration) {
-        let run;
-
-        // Проверяем, существует ли маятник, и сохраняем нужные параметры
-        if (this.pendulum) {
-            run = this.pendulum.run;
-
-            if (!Number.isFinite(angle)) {
-                angle = this.pendulum.calcAngle();
-            }
-
-            if (!Number.isFinite(length)) {
-                length = this.pendulum.length / this.pendulum.coef;
-            }
-
-            if (!Number.isFinite(deceleration)) {
-                deceleration = this.pendulum.deceleration;
-            }
-        }
-
-        // Устанавливаем полученные данные на маятник
-        this.pendulum.setAngle(angle);
-        this.pendulum.setLength(length);
-        this.pendulum.setDeceleration(deceleration);
-
-        this.pendulum.run = run;
-
         this.valid = false;
     }
 
@@ -304,13 +265,10 @@ class CanvasState {
      * Обрабатывает отпускание кнопки указывающего устройства
      */
     handlePointerUp() {
-        // Если при отпускании мыши изменился угол маятника, обновляем эти данные
+        // Обновляем угол отклонения маятника
         if (this.selection === this.pendulum) {
             const newAngle = this.pendulum.calcAngle();
-
-            if (newAngle !== this.pendulum.angle0) {
-                this.updatePendulumData(newAngle, null, null);
-            }
+            this.pendulum.setAngle(newAngle);
         }
 
         this.dragging = false;

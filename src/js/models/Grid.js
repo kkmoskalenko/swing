@@ -12,18 +12,19 @@ class Grid {
     }
 
     /**
-     * Рисует вертикальную направляющую по центру холста
+     * Рисует вертикальную направляющую на указанном расстоянии от начала холста
      * @param context Контекст 2D рендеринга для элемента canvas
+     * @param x Координата x направляющей
      */
-    drawGuide(context) {
+    drawGuide(context, x) {
         const canvas = context.canvas;
 
         context.strokeStyle = this.guideColor;
         context.setLineDash([5]);
 
         context.beginPath();
-        context.moveTo(canvas.width / 2, 0);
-        context.lineTo(canvas.width / 2, canvas.height);
+        context.moveTo(x, 0);
+        context.lineTo(x, canvas.height);
         context.stroke();
 
         // Отключает пунктирные линии после отрисовки направляющей
@@ -75,8 +76,6 @@ class Grid {
             }
             context.stroke();
         }
-
-        this.drawGuide(context);
     }
 }
 
